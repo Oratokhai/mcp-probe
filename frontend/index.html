@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MCP Probe</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Theme tokens ──────────────────────────────────────────── */
+    :root {
+      --a-rgb:   99, 102, 241;
+      --a:       #6366f1;
+      --a-mid:   #818cf8;
+      --a-light: #a5b4fc;
+      --a-dark:  #4338ca;
+      --a-deep:  #5b21b6;
+      --a-pale:  #e0e7ff;
+      --btn:     linear-gradient(135deg, #4338ca, #6366f1);
+      --grad:    linear-gradient(130deg, #818cf8 0%, #a5b4fc 60%, #e0e7ff 100%);
+    }
+    body.theme-pass {
+      --a-rgb:   34, 197, 94;
+      --a:       #16a34a;
+      --a-mid:   #22c55e;
+      --a-light: #4ade80;
+      --a-dark:  #15803d;
+      --a-deep:  #14532d;
+      --a-pale:  #dcfce7;
+      --btn:     linear-gradient(135deg, #15803d, #22c55e);
+      --grad:    linear-gradient(130deg, #22c55e 0%, #4ade80 60%, #bbf7d0 100%);
+    }
+    body.theme-fail {
+      --a-rgb:   185, 28, 28;
+      --a:       #b91c1c;
+      --a-mid:   #dc2626;
+      --a-light: #ef4444;
+      --a-dark:  #991b1b;
+      --a-deep:  #7f1d1d;
+      --a-pale:  #fee2e2;
+      --btn:     linear-gradient(135deg, #991b1b, #dc2626);
+      --grad:    linear-gradient(130deg, #f87171 0%, #fca5a5 60%, #fef2f2 100%);
+    }
+
+    html {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(var(--a-rgb), 0.22) transparent;
+    }
+
+    body {
+      background: #06060f;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Aura canvas ───────────────────────────────────────────── */
+    #aura {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ── Page layout ───────────────────────────────────────────── */
+    .page {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+
+    /* ── Hero — full-viewport, card centred ────────────────────── */
+    .hero {
+      min-height: 100vh;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 1.5rem;
+    }
+
+    .hero-card {
+      width: 100%;
+      max-width: 520px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2rem;
+      padding: 2.5rem 2rem;
+      background: rgba(11, 11, 24, 0.32);
+      backdrop-filter: blur(36px);
+      -webkit-backdrop-filter: blur(36px);
+      border: 1px solid rgba(var(--a-rgb), 0.14);
+      border-radius: 12px;
+      transition: border-color 0.6s;
+    }
+
+    /* ── Portrait banner ───────────────────────────────────────── */
+    .hero-banner {
+      width: 210px;
+      padding: 2.25rem 1.5rem 2rem;
+      background: rgba(0, 0, 0, 0.22);
+      border: 1px solid rgba(var(--a-rgb), 0.18);
+      border-radius: 14px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.55rem;
+      transition: border-color 0.6s;
+    }
+
+    .eyebrow {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.58rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--a-mid);
+      opacity: 0.8;
+      transition: color 0.6s;
+    }
+
+    .hero-banner h1 {
+      font-size: 2.1rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      color: #f1f5f9;
+    }
+
+    .hero-banner h1 em {
+      font-style: normal;
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-banner p {
+      font-size: 0.75rem;
+      color: #6b7280;
+      line-height: 1.5;
+      margin-top: 0.2rem;
+    }
+
+    /* ── URL area ──────────────────────────────────────────────── */
+    .url-area {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.875rem;
+    }
+
+    #url-input {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(var(--a-rgb), 0.22);
+      border-radius: 100px;
+      color: #f1f5f9;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.84rem;
+      padding: 0.78rem 1.5rem;
+      outline: none;
+      box-shadow: 0 0 14px rgba(var(--a-rgb), 0.07);
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    #url-input:focus {
+      border-color: rgba(var(--a-rgb), 0.50);
+      box-shadow: 0 0 0 3px rgba(var(--a-rgb), 0.10), 0 0 22px rgba(var(--a-rgb), 0.12);
+    }
+    #url-input::placeholder { color: #374151; }
+
+    #run-btn {
+      background: var(--btn);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 0.83rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      padding: 0.72rem 2.25rem;
+      text-transform: uppercase;
+      transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s, background 0.6s;
+      white-space: nowrap;
+    }
+    #run-btn:hover:not(:disabled) {
+      opacity: 0.88;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 22px rgba(var(--a-rgb), 0.38);
+    }
+    #run-btn:active:not(:disabled) { transform: translateY(0); }
+    #run-btn:disabled { opacity: 0.38; cursor: not-allowed; }
+
+    #error-msg {
+      color: #f87171;
+      font-family: monospace;
+      font-size: 0.78rem;
+      text-align: center;
+      display: none;
+    }
+
+    /* ── Output area ───────────────────────────────────────────── */
+    .output-area {
+      width: 100%;
+      max-width: 800px;
+      padding: 0 1.5rem 8rem;
+    }
+
+    /* ── Glass card base ───────────────────────────────────────── */
+    .card {
+      background: rgba(11, 11, 24, 0.35);
+      backdrop-filter: blur(36px);
+      -webkit-backdrop-filter: blur(36px);
+      border: 1px solid rgba(var(--a-rgb), 0.14);
+      border-radius: 12px;
+      transition: border-color 0.6s;
+    }
+
+    /* ── Loading ───────────────────────────────────────────────── */
+    #loading {
+      display: none;
+      padding: 3rem;
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .ring {
+      width: 40px; height: 40px;
+      border: 2px solid rgba(var(--a-rgb), 0.15);
+      border-top-color: var(--a-mid);
+      border-radius: 50%;
+      animation: spin 0.85s linear infinite;
+      margin: 0 auto 1.25rem;
+      transition: border-color 0.6s;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #loading-msg {
+      color: #6b7280;
+      font-family: monospace;
+      font-size: 0.8rem;
+    }
+
+    /* ── Results ───────────────────────────────────────────────── */
+    #results { display: none; }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 160px;
+      gap: 0.875rem;
+      margin-bottom: 0.875rem;
+    }
+
+    .server-card { padding: 1.25rem 1.5rem; }
+    .card-label {
+      font-family: monospace;
+      font-size: 0.62rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #6b7280;
+      margin-bottom: 0.4rem;
+    }
+    #srv-name {
+      font-size: 1.05rem;
+      font-weight: 600;
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      transition: background 0.6s;
+    }
+    #srv-meta { font-family: monospace; font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem; }
+
+    .score-card { padding: 1.25rem 1rem; text-align: center; }
+    #score-num {
+      font-size: 3.25rem;
+      font-weight: 800;
+      letter-spacing: -0.06em;
+      line-height: 1;
+    }
+    .score-sub { font-size: 0.6rem; font-family: monospace; letter-spacing: 0.12em; color: #6b7280; margin-top: 0.2rem; text-transform: uppercase; }
+
+    .verdict {
+      display: inline-block;
+      border-radius: 100px;
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.22rem 0.7rem;
+      margin-top: 0.65rem;
+    }
+    .v-COMPLIANT    { background: rgba(34,197,94,0.12);  color: #22c55e; border: 1px solid rgba(34,197,94,0.28); }
+    .v-MOSTLY       { background: rgba(99,102,241,0.12); color: #818cf8; border: 1px solid rgba(99,102,241,0.28); }
+    .v-PARTIALLY    { background: rgba(245,158,11,0.12); color: #f59e0b; border: 1px solid rgba(245,158,11,0.28); }
+    .v-NONCOMPLIANT { background: rgba(239,68,68,0.12);  color: #f87171; border: 1px solid rgba(239,68,68,0.28); }
+
+    /* ── Stat chips ────────────────────────────────────────────── */
+    .stats { display: flex; gap: 0.5rem; margin-bottom: 1.75rem; flex-wrap: wrap; }
+    .chip {
+      font-family: monospace;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.22rem 0.7rem;
+      border-radius: 100px;
+    }
+    .chip.pass { background: rgba(34,197,94,0.1);    color: #22c55e; }
+    .chip.warn { background: rgba(245,158,11,0.1);   color: #f59e0b; }
+    .chip.fail { background: rgba(239,68,68,0.1);    color: #f87171; }
+    .chip.skip { background: rgba(107,114,128,0.08); color: #6b7280; }
+
+    /* ── Check layers ──────────────────────────────────────────── */
+    .layer { margin-bottom: 2rem; }
+
+    .layer-title {
+      font-family: monospace;
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--a-mid);
+      opacity: 0.85;
+      margin-bottom: 0.65rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid rgba(var(--a-rgb), 0.14);
+      transition: color 0.6s, border-color 0.6s;
+    }
+
+    .check-row {
+      background: rgba(10, 10, 22, 0.72);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(var(--a-rgb), 0.10);
+      border-radius: 10px;
+      margin-bottom: 0.35rem;
+      overflow: hidden;
+      transition: border-color 0.3s, background 0.3s;
+    }
+    .check-row:hover { border-color: rgba(var(--a-rgb), 0.30); background: rgba(10,10,22,0.85); }
+    .check-row.row-FAIL { border-left: 3px solid rgba(239,68,68,0.50); }
+    .check-row.row-FAIL:hover { border-color: rgba(239,68,68,0.70); border-left-color: rgba(239,68,68,0.80); }
+    .check-row.row-WARN { border-left: 3px solid rgba(245,158,11,0.45); }
+    .check-row.row-WARN:hover { border-color: rgba(245,158,11,0.65); border-left-color: rgba(245,158,11,0.80); }
+
+    .check-header {
+      display: grid;
+      grid-template-columns: 5.5rem 1fr auto;
+      gap: 0.75rem;
+      align-items: center;
+      padding: 0.7rem 1rem;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .check-id   { font-family: monospace; font-size: 0.65rem; color: #4b5563; }
+    .check-name { font-size: 0.83rem; font-weight: 500; }
+
+    .badge {
+      font-family: monospace;
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      padding: 0.18rem 0.55rem;
+      border-radius: 100px;
+      text-transform: uppercase;
+    }
+    .b-PASS { background: rgba(34,197,94,0.1);    color: #22c55e; }
+    .b-WARN { background: rgba(245,158,11,0.1);   color: #f59e0b; }
+    .b-FAIL { background: rgba(239,68,68,0.1);    color: #f87171; }
+    .b-SKIP { background: rgba(107,114,128,0.08); color: #6b7280; }
+
+    .check-body {
+      display: none;
+      border-top: 1px solid rgba(var(--a-rgb), 0.10);
+      padding: 0.875rem 1rem;
+      transition: border-color 0.6s;
+    }
+    .check-body.open { display: block; }
+
+    .check-detail {
+      font-family: monospace;
+      font-size: 0.77rem;
+      color: #9ca3af;
+      line-height: 1.65;
+      margin-bottom: 0.6rem;
+    }
+
+    .fix-box {
+      background: rgba(var(--a-rgb), 0.05);
+      border: 1px solid rgba(var(--a-rgb), 0.16);
+      border-radius: 6px;
+      padding: 0.65rem 0.875rem;
+      transition: background 0.6s, border-color 0.6s;
+    }
+    .fix-label {
+      font-family: monospace;
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--a-mid);
+      margin-bottom: 0.3rem;
+      transition: color 0.6s;
+    }
+    .fix-text { font-size: 0.78rem; color: #d1d5db; line-height: 1.55; }
+
+    .duration {
+      font-family: monospace;
+      font-size: 0.68rem;
+      color: #374151;
+      text-align: right;
+      margin-top: 1.25rem;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    #results.visible { animation: fadeUp 0.45s ease forwards; }
+
+    /* ── Scroll cue ────────────────────────────────────────────── */
+    #scroll-cue {
+      display: none;
+      position: fixed;
+      bottom: 8vh;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 200;
+      pointer-events: none;
+    }
+    .scroll-chevron {
+      display: block;
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: rgba(var(--a-rgb), 0.75);
+      text-shadow: 0 0 18px rgba(var(--a-rgb), 0.65), 0 0 32px rgba(var(--a-rgb), 0.30);
+      transform: rotate(180deg);
+      animation: scrollBounce 1.6s ease-in-out infinite;
+      transition: color 0.6s, text-shadow 0.6s;
+    }
+    @keyframes scrollBounce {
+      0%, 100% { transform: rotate(180deg) translateY(0px);   opacity: 0.75; }
+      50%       { transform: rotate(180deg) translateY(-10px); opacity: 1.00; }
+    }
+
+    @media (max-width: 580px) {
+      .summary-grid { grid-template-columns: 1fr; }
+      .hero-banner  { width: 180px; }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="aura"></canvas>
+<div id="scroll-cue"><span class="scroll-chevron">^</span></div>
+
+<div class="page">
+
+  <section class="hero">
+    <div class="hero-card card">
+      <div class="hero-banner">
+        <div class="eyebrow">MCP.PROBE // PROTOCOL VALIDATOR</div>
+        <h1>MCP <em>Probe</em></h1>
+        <p>Protocol conformance validator for MCP servers</p>
+      </div>
+
+      <div class="url-area">
+        <input
+          id="url-input"
+          type="url"
+          placeholder="https://your-mcp-server.com/mcp"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button id="run-btn">Run Audit</button>
+        <div id="error-msg"></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="output-area">
+    <div class="card" id="loading">
+      <div class="ring"></div>
+      <p id="loading-msg">Running 18 checks…</p>
+    </div>
+
+    <div id="results">
+      <div class="summary-grid">
+        <div class="card server-card">
+          <div class="card-label">Server</div>
+          <div id="srv-name">—</div>
+          <div id="srv-meta"></div>
+        </div>
+        <div class="card score-card">
+          <div class="card-label">Score</div>
+          <div id="score-num">—</div>
+          <div class="score-sub">compliance</div>
+          <div id="verdict-badge" class="verdict"></div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <span class="chip pass" id="stat-pass"></span>
+        <span class="chip warn" id="stat-warn"></span>
+        <span class="chip fail" id="stat-fail"></span>
+        <span class="chip skip" id="stat-skip"></span>
+      </div>
+
+      <div id="layers-container"></div>
+      <div class="duration" id="duration"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Aura animation ────────────────────────────────────────────────────────
+(function () {
+  const cv  = document.getElementById('aura');
+  const cx  = cv.getContext('2d');
+  const off = document.createElement('canvas');
+  const ox  = off.getContext('2d');
+  let t = 0, raf;
+
+  function resize() {
+    cv.width   = window.innerWidth;
+    cv.height  = window.innerHeight;
+    off.width  = cv.width;
+    off.height = cv.height;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  function getThemeColors() {
+    const b = document.body;
+    if (b.classList.contains('theme-pass')) return {
+      rgb: '34,197,94',
+      c1: '#16a34a', c2: '#22c55e', c3: '#4ade80',
+      fog0: 'rgba(34,197,94,0.10)', fog1: 'rgba(20,163,70,0.03)',
+      s1: '#14532d'
+    };
+    if (b.classList.contains('theme-fail')) return {
+      rgb: '185,28,28',
+      c1: '#b91c1c', c2: '#dc2626', c3: '#ef4444',
+      fog0: 'rgba(185,28,28,0.10)', fog1: 'rgba(153,27,27,0.03)',
+      s1: '#7f1d1d'
+    };
+    return {
+      rgb: '99,102,241',
+      c1: '#6366f1', c2: '#818cf8', c3: '#a5b4fc',
+      fog0: 'rgba(99,102,241,0.10)', fog1: 'rgba(79,70,229,0.03)',
+      s1: '#5b21b6'
+    };
+  }
+
+  function buildPath(baseR, rOff, turb) {
+    const N = 480;
+    const pts = [];
+    for (let i = 0; i <= N; i++) {
+      const a = Math.PI + Math.PI * (i / N);
+      let wave =
+        Math.sin(a *  5 + t * 1.10) * 14 +
+        Math.sin(a *  2 - t * 0.65) * 19 +
+        Math.sin(a * 11 + t * 2.30) *  5 +
+        Math.sin(a * 19 - t * 3.40) *  2.5;
+      if (turb > 1) {
+        wave += Math.sin(a *  7 + t * 4.50) *  9;
+        wave += Math.sin(a * 13 - t * 3.20) *  6;
+        wave += Math.sin(a * 23 + t * 5.80) *  3;
+        wave *= 1 + (turb - 1) * 0.75;
+      }
+      const r = baseR + wave + rOff;
+      pts.push([cv.width / 2 + r * Math.cos(a), cv.height + r * Math.sin(a)]);
+    }
+    return pts;
+  }
+
+  function trace(ctx, pts, lw, alpha, blur, color) {
+    ctx.save();
+    ctx.beginPath();
+    pts.forEach(([x, y], i) => i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y));
+    ctx.strokeStyle = color;
+    ctx.lineWidth   = lw;
+    if (blur > 0) { ctx.shadowColor = color; ctx.shadowBlur = blur; }
+    ctx.globalAlpha = alpha;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function frame() {
+    const W = cv.width, H = cv.height;
+    const baseR  = H * 0.5;
+    const C      = getThemeColors();
+    const isFail = document.body.classList.contains('theme-fail');
+    const turb   = isFail ? 1.75 : 1.0;
+
+    const pts  = buildPath(baseR,   0, turb);
+    const pts2 = buildPath(baseR, -28, turb);
+
+    // ── Draw crisp aura onto offscreen canvas ─────────────────────
+    ox.clearRect(0, 0, W, H);
+
+    // Wide outer diffusion layers — bleed colour far from the arc
+    trace(ox, pts, 200, 0.04, 80, `rgba(${C.rgb},1)`);
+    trace(ox, pts, 130, 0.06, 55, `rgba(${C.rgb},1)`);
+    trace(ox, pts,  80, 0.10, 40, C.c1);
+    trace(ox, pts,  45, 0.18, 25, C.c2);
+    trace(ox, pts,  22, 0.26, 12, C.c3);
+
+    // White core — bright but still soft
+    trace(ox, pts, 42, 0.55, 20, '#ffffff');
+    trace(ox, pts, 18, 0.85,  8, '#ffffff');
+    trace(ox, pts,  6, 1.00,  2, '#ffffff');
+
+    // Secondary inner
+    trace(ox, pts2, 28, 0.12, 18, C.s1);
+    trace(ox, pts2, 10, 0.32,  6, '#f0f4ff');
+
+    // ── Multi-pass blur composite onto main canvas ────────────────
+    cx.clearRect(0, 0, W, H);
+
+    // Atmospheric colour fog
+    const fog = cx.createRadialGradient(W/2, H, 0, W/2, H, baseR * 0.75);
+    fog.addColorStop(0,   C.fog0);
+    fog.addColorStop(0.5, C.fog1);
+    fog.addColorStop(1,   'rgba(0,0,0,0)');
+    cx.fillStyle = fog;
+    cx.fillRect(0, 0, W, H);
+
+    // Pass 1 — very heavy blur: bloom light outward into the dark
+    cx.save();
+    cx.filter = 'blur(80px)';
+    cx.globalAlpha = 0.70;
+    cx.drawImage(off, 0, 0);
+    cx.restore();
+
+    // Pass 2 — heavy blur: secondary wide spread
+    cx.save();
+    cx.filter = 'blur(40px)';
+    cx.globalAlpha = 0.60;
+    cx.drawImage(off, 0, 0);
+    cx.restore();
+
+    // Pass 3 — medium blur: main visible stream body
+    cx.save();
+    cx.filter = 'blur(16px)';
+    cx.globalAlpha = 0.80;
+    cx.drawImage(off, 0, 0);
+    cx.restore();
+
+    // Pass 4 — soft: retains brightness with gentle spread
+    cx.save();
+    cx.filter = 'blur(5px)';
+    cx.globalAlpha = 0.50;
+    cx.drawImage(off, 0, 0);
+    cx.restore();
+
+    t += isFail ? 0.021 : 0.013;
+    raf = requestAnimationFrame(frame);
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) cancelAnimationFrame(raf);
+    else frame();
+  });
+
+  frame();
+})();
+
+// ── Theme switching ───────────────────────────────────────────────────────
+function setTheme(verdict) {
+  document.body.classList.remove('theme-pass', 'theme-fail');
+  if (verdict === 'COMPLIANT' || verdict === 'MOSTLY COMPLIANT') {
+    document.body.classList.add('theme-pass');
+  } else if (verdict !== null) {
+    document.body.classList.add('theme-fail');
+  }
+}
+
+// ── Audit UI ──────────────────────────────────────────────────────────────
+const LAYERS = [
+  { title: 'L1 // Handshake & Protocol Conformance', checks: ['CHECK-01','CHECK-02','CHECK-03','CHECK-04','CHECK-05'] },
+  { title: 'L2 // Tool Discovery',                   checks: ['CHECK-06','CHECK-07','CHECK-08'] },
+  { title: 'L3 // Tool Call Behaviour',              checks: ['CHECK-09','CHECK-10','CHECK-11','CHECK-12'] },
+  { title: 'L4 // Error Handling Quality',           checks: ['CHECK-13','CHECK-14','CHECK-15'] },
+  { title: 'L5 // Response Hygiene',                 checks: ['CHECK-16','CHECK-17','CHECK-18'] },
+];
+
+const $url     = document.getElementById('url-input');
+const $btn     = document.getElementById('run-btn');
+const $err     = document.getElementById('error-msg');
+const $loading = document.getElementById('loading');
+const $loadMsg = document.getElementById('loading-msg');
+const $results = document.getElementById('results');
+
+const showErr  = m => { $err.textContent = m; $err.style.display = 'block'; };
+const clearErr = ()  => { $err.textContent = ''; $err.style.display = 'none'; };
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function verdictCls(v) {
+  if (v === 'COMPLIANT')           return 'v-COMPLIANT';
+  if (v === 'MOSTLY COMPLIANT')    return 'v-MOSTLY';
+  if (v === 'PARTIALLY COMPLIANT') return 'v-PARTIALLY';
+  return 'v-NONCOMPLIANT';
+}
+
+function scoreColor(s) {
+  if (s >= 90) return '#22c55e';
+  if (s >= 70) return '#818cf8';
+  if (s >= 50) return '#f59e0b';
+  return '#f87171';
+}
+
+function render(data) {
+  const si = data.server_info || {};
+  document.getElementById('srv-name').textContent = si.name || 'Unknown Server';
+  document.getElementById('srv-meta').textContent =
+    [si.version ? `v${si.version}` : '', si.protocol_version ? `MCP ${si.protocol_version}` : '']
+      .filter(Boolean).join(' · ');
+
+  const sn = document.getElementById('score-num');
+  sn.textContent = data.score;
+  sn.style.color = scoreColor(data.score);
+
+  const vb = document.getElementById('verdict-badge');
+  vb.textContent = data.verdict;
+  vb.className = `verdict ${verdictCls(data.verdict)}`;
+
+  document.getElementById('stat-pass').textContent = `${data.pass_count} pass`;
+  document.getElementById('stat-warn').textContent = `${data.warn_count} warn`;
+  document.getElementById('stat-fail').textContent = `${data.fail_count} fail`;
+  const skipChip = document.getElementById('stat-skip');
+  if (data.skip_count > 0) {
+    skipChip.textContent = `${data.skip_count} skipped`;
+    skipChip.style.display = '';
+  } else {
+    skipChip.style.display = 'none';
+  }
+
+  const byId = {};
+  data.results.forEach(r => { byId[r.check_id] = r; });
+
+  const container = document.getElementById('layers-container');
+  container.innerHTML = '';
+
+  LAYERS.forEach(layer => {
+    const visibleChecks = layer.checks.filter(cid => byId[cid] && byId[cid].status !== 'SKIP');
+    if (visibleChecks.length === 0) return;
+
+    const lEl = document.createElement('div');
+    lEl.className = 'layer';
+
+    const lt = document.createElement('div');
+    lt.className = 'layer-title';
+    lt.textContent = layer.title;
+    lEl.appendChild(lt);
+
+    visibleChecks.forEach(cid => {
+      const check = byId[cid];
+
+      const row = document.createElement('div');
+      row.className = `check-row row-${check.status}`;
+
+      const hdr = document.createElement('div');
+      hdr.className = 'check-header';
+      hdr.innerHTML = `
+        <span class="check-id">${check.check_id}</span>
+        <span class="check-name">${esc(check.name)}</span>
+        <span class="badge b-${check.status}">${check.status}</span>
+      `;
+
+      const body = document.createElement('div');
+      body.className = 'check-body';
+      body.innerHTML = `
+        <div class="check-detail">${esc(check.detail)}</div>
+        ${check.fix ? `<div class="fix-box"><div class="fix-label">Fix</div><div class="fix-text">${esc(check.fix)}</div></div>` : ''}
+      `;
+
+      hdr.addEventListener('click', () => body.classList.toggle('open'));
+      row.appendChild(hdr);
+      row.appendChild(body);
+      lEl.appendChild(row);
+    });
+
+    container.appendChild(lEl);
+  });
+
+  document.getElementById('duration').textContent =
+    `audit completed in ${data.audit_duration_ms}ms`;
+
+  // Switch theme based on verdict
+  setTheme(data.verdict);
+
+  $results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function runAudit() {
+  const url = $url.value.trim();
+  if (!url) { showErr('Enter a server URL.'); return; }
+  clearErr();
+
+  // Reset to default blue while running
+  setTheme(null);
+
+  $btn.disabled = true;
+  $results.style.display = 'none';
+  $scrollCue.style.display = 'none';
+  scrollCueActive = false;
+  $loading.style.display = 'block';
+  $loadMsg.textContent = `Running 18 checks against ${url}…`;
+
+  try {
+    const resp = await fetch('/audit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      const msg = data.detail || data.message || `Error ${resp.status}`;
+      showErr(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      setTheme('NON-COMPLIANT'); // error → fail theme
+      return;
+    }
+    render(data);
+    $results.classList.remove('visible');
+    $results.style.display = 'block';
+    void $results.offsetWidth;
+    $results.classList.add('visible');
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    $scrollCue.style.display = 'block';
+    scrollCueActive = true;
+  } catch (e) {
+    showErr(`Request failed: ${e.message}`);
+    setTheme('NON-COMPLIANT');
+  } finally {
+    $loading.style.display = 'none';
+    $btn.disabled = false;
+  }
+}
+
+const $scrollCue = document.getElementById('scroll-cue');
+let scrollCueActive = false;
+
+window.addEventListener('scroll', () => {
+  if (scrollCueActive && window.scrollY > window.innerHeight * 0.25) {
+    $scrollCue.style.display = 'none';
+    scrollCueActive = false;
+  }
+});
+
+$btn.addEventListener('click', runAudit);
+$url.addEventListener('keydown', e => { if (e.key === 'Enter') runAudit(); });
+</script>
+</body>
+</html>
